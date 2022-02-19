@@ -1,0 +1,8 @@
+FROM node:latest
+WORKDIR /usr/src/app
+
+COPY ./build /usr/src/app/build
+COPY ./web/server.js /usr/src/app
+
+RUN npm install express --save
+
