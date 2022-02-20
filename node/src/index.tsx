@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import ReactDom from 'react-dom'
-import {Box, Modal, TextField, Button, Typography, ListItem, ListItemText, AppBar, Toolbar, ThemeProvider, createTheme, Checkbox, FormControl, FormGroup, FormControlLabel} from '@mui/material';
 
 import CodeEditor from './components/code-editor'
 import {ReadOnlyTextEditor, TextEditor} from './components/text-editor';
@@ -24,15 +23,6 @@ import {
   useParams,
 } from "react-router-dom";
 import { Virtuoso } from 'react-virtuoso'
-
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#1976d2',
-    },
-  },
-});
 
 var json : FlexLayout.IJsonModel= {
   global: {},
@@ -147,7 +137,7 @@ var json : FlexLayout.IJsonModel= {
   }
 };
 
-const endpoint = "http://" + window.location.hostname + ":8000";
+const endpoint = "http://" + window.location.hostname + "/api";
 
 const cyrb53 = function(str: string, seed = 0) {
   let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
@@ -234,7 +224,7 @@ const model = FlexLayout.Model.fromJson(json);
 function Main(props: {name: string, room_id: string}) {
 
   const api_endpoint = "https://wandbox.org/api/compile.json"
-  const ws_endpoint = "ws://" + window.location.hostname + ":8000/ws/"+props.room_id
+  const ws_endpoint = "ws://" + window.location.hostname + "/api/ws/"+props.room_id
   console.log(ws_endpoint)
   
   const [code_editor, set_code_editor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -510,7 +500,7 @@ function Main(props: {name: string, room_id: string}) {
       </div>
       <div style={{
         position: "relative",
-        height: "calc(100vh - 64px)",
+        height: "calc(100vh - 56px)",
       }}>
         <FlexLayout.Layout
           model={model}
@@ -548,24 +538,24 @@ function ChatApp() {
 
   if (userName === "" && room_is_exist) {
     return (
-      <Box sx={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw"}}>
-        <Box>
-          <Typography variant="h4">部屋名: {room_name}</Typography>
+      <div style={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw"}}>
+        <div>
+          <h4>部屋名: {room_name}</h4>
           <div>名前を入力してください</div>
-          <TextField id="user-name" label="名前" variant="outlined" />
-          <Button variant="contained" onClick={onclick} style={{margin: "5px"}}>OK</Button>
-        </Box>
-      </Box>
+          <input id="user-name" type="text" className="form-control" placeholder="名前"  />
+          <button type="button" className="btn btn-primary" onClick={onclick} style={{margin: "5px"}}>OK</button>
+        </div>
+      </div>
     )
   }
   else if(!room_is_exist) {
     return (
-      <Box sx={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw"}}>
-        <Box>
+      <div style={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw"}}>
+        <div>
           <div>部屋が存在しません</div><br />
           <a href="/"> 戻る </a>
-        </Box>
-      </Box>
+        </div>
+      </div>
     )
   }
   else {
@@ -587,12 +577,15 @@ function RoomList(props:{rooms: Room[]}) {
       style={{ height: "30%", width: "500px" }}
       itemContent={(index, room) => {
         return ( 
-          <ListItem button key={room.room_id}>
-            <ListItemText primary={room.name} secondary={room.connections+"人"}/>
-            <a href={`/chat/${room.room_id}`}>
-              <ListItemText primary="入室" />
+          <div className="list-group-item d-flex justify-content-between align-items-start">
+            <div className="ms-2 me-auto">
+              <div className="fw-bold">{room.name}</div>
+              <div>{room.connections+"人"}</div>
+            </div>
+            <a className="btn btn-primary" href={`/chat/${room.room_id}`}>
+              入室
             </a>
-          </ListItem>
+          </div>
         )
       }}
     />
@@ -636,37 +629,38 @@ function Welcome() {
 
   return (
     <>
-      <ThemeProvider theme={darkTheme}>
-        <AppBar position="sticky">
-            <Toolbar>
-                <Typography variant="h6" component="div" style={{ flex: 1 }}>
-                    CodingChat
-                </Typography>
-            </Toolbar>
-        </AppBar>
-      </ThemeProvider>
-      <Box sx={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw", flexFlow: "column"}}>
-        <Box>
+      <nav className="navbar navbar-light bg-dark">
+        <div className="container-fluid d-flex flex-row">
+            <a className="navbar-brand" href="#" style={{color: "white"}}>CodingChat</a>
+        </div>
+      </nav>
+      <div style={{textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw", flexFlow: "column"}}>
+        <div>
           CodingChatはオンラインでのペアプログラミングを支援するサービスです。
-        </Box>
-        <Box sx={{height: "5%"}}/>
-        <Box>
-          <Typography variant="h4">部屋一覧</Typography>
-        </Box>
+        </div>
+        <div style={{height: "5%"}}/>
+        <div>
+          <h4>部屋一覧</h4>
+        </div>
         <RoomList rooms={room_list}></RoomList>
         ※新しい部屋の作成時に、誰も入っていない部屋は自動的に削除されます。
-        <Box sx={{height: "5%"}}/>
-        <Typography variant="h4" sx={{margin: "5px"}}>部屋を新規作成</Typography>
-        <Box>
-          <FormGroup>
-            <TextField id="room-name" label="部屋名" variant="outlined" />
-            <FormControlLabel label="公開"
-              control={<Checkbox id="is-public" checked={checked} onClick={checkbox_clicked} />}
-            />
-            <Button sx={{margin: "5px"}} variant="contained" onClick={create_room}>作成</Button>
-          </FormGroup>
-        </Box>
-      </Box>
+        <div style={{height: "5%"}}/>
+        <h4 style={{margin: "5px"}}>部屋を新規作成</h4>
+        <div>
+          <div>
+            <input id="room-name" className="form-control" placeholder='部屋名'/>
+          </div>
+          <div>
+            <input className="form-check-input" type="checkbox" value="" id="is-public" checked={checked} onClick={checkbox_clicked}/>
+            <label className="form-check-label" htmlFor="flexCheckChecked">
+              公開
+            </label>
+          </div>
+          <div>
+            <button style={{margin: "5px"}} className="btn btn-primary" onClick={create_room}>作成</button>
+          </div>
+        </div>
+      </div>
     </>
   );
 
@@ -684,7 +678,7 @@ function App() {
 ReactDom.render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <App></App>
     </BrowserRouter>
   </React.StrictMode>,
   document.getElementById('root')
