@@ -1,5 +1,2 @@
-/api/src/__pycache__
-/web/build
-/web/package.json
-/web/package-lock.json
-/web/node_modules
+/client/**/build
+node_modules

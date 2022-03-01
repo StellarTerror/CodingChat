@@ -7,7 +7,7 @@ import Main from "./main";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { Virtuoso } from "react-virtuoso";
 
-const endpoint = "http://" + window.location.hostname + "/api";
+const endpoint = window.location.protocol + "//" + window.location.host + "/api";
 
 function ChatApp() {
   const roomId = useParams<{ id: string }>();

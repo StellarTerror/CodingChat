@@ -1,23 +1,17 @@
 version: "3"
 
 services:
-
   node:
     build: ./node
     ports:
       - 8080:8080
-    volumes:
-      - "./node:/usr/src/app"
-    working_dir: "/usr/src/app"
     environment:
       - PORT=8080
       - CHOKIDAR_USEPOLLING=true
-    command: bash -c "npm install && npm start"
-    tty: true
+      - API_HOST=api
+      - API_PORT=3000
 
   api:
     build: ./api
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./api/src:/usr/src/app
+    environment:
+      - PORT=3000

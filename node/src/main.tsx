@@ -259,7 +259,7 @@ const model = FlexLayout.Model.fromJson(json);
 function Main(props: { name: string; room_id: string }) {
   const api_endpoint = "https://wandbox.org/api/compile.json";
   const ws_endpoint =
-    "ws://" + window.location.hostname + "/api/ws/" + props.room_id;
+    "ws://" + window.location.host + "/api/ws/" + props.room_id;
   console.log(ws_endpoint);
 
   const [code_editor, set_code_editor] =
