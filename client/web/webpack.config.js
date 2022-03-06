@@ -1,6 +1,8 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MonacoEditorWebpackPlugin = require('monaco-editor-webpack-plugin');
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
+const ReactRefreshTypeScript = require('react-refresh-typescript');
 
 module.exports = (env, argv) => {
   const isDev = argv.mode !== 'production';
@@ -26,6 +28,7 @@ module.exports = (env, argv) => {
             {
               loader: 'ts-loader',
               options: {
+                getCustomTransformers: () => (isDev ? { before: [ReactRefreshTypeScript()] } : {}),
                 compilerOptions: { jsx: 'react-jsx' + (isDev ? 'dev' : '') },
               },
             },
@@ -33,7 +36,7 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.css$/,
-          use: ['css-loader'],
+          use: ['style-loader', 'css-loader'],
         },
       ],
     },
@@ -60,7 +63,8 @@ module.exports = (env, argv) => {
         template: path.resolve(__dirname, './template.html'),
       }),
       new MonacoEditorWebpackPlugin(),
-    ],
+      isDev && new ReactRefreshWebpackPlugin(),
+    ].filter(v => !!v),
     devServer: {
       proxy: {
         '/api': {

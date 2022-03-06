@@ -149,13 +149,13 @@ type CompileRequest<L extends Language> = {
 
 type CompileResponse = {
   status: string;
-  signal: string;
-  compiler_output: string;
-  compiler_error: string;
-  compiler_message: string;
-  program_output: string;
-  program_error: string;
-  program_message: string;
+  signal?: string;
+  compiler_output?: string;
+  compiler_error?: string;
+  compiler_message?: string;
+  program_output?: string;
+  program_error?: string;
+  program_message?: string;
 };
 
 const endpoint = 'https://wandbox.org/api/compile.json';

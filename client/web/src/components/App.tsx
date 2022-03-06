@@ -2,6 +2,8 @@ import { Route, MakeGenerics, Router, ReactLocation } from '@tanstack/react-loca
 import { Welcome } from '~/pages/index';
 import { ChatPage } from '~/pages/chat';
 import { getRoomInfo, RoomInfo } from '~/scripts/room-api';
+import { GlobalStyle } from '~/styles/global';
+import { Providers } from './Provider';
 
 export type LocationGenerics = MakeGenerics<{
   LoaderData: {
@@ -29,7 +31,12 @@ const routes: Route[] = [
 ];
 
 const App = () => {
-  return <Router routes={routes} location={location} />;
+  return (
+    <Providers>
+      <Router routes={routes} location={location} />
+      <GlobalStyle />
+    </Providers>
+  );
 };
 
 export default App;

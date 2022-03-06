@@ -50,7 +50,7 @@ export type ChatMessage =
       name: string;
       date: Date;
       content: string;
-      key: ConnectionKey;
+      uid: ConnectionKey;
     }
   | {
       type: 'info';
@@ -58,29 +58,33 @@ export type ChatMessage =
       content: string;
     };
 
-type Subscriber = (message: InboundMessage, timestamp: number) => void;
 export class ChatConnection {
-  private subscribers: Set<Subscriber>;
   private room: Room;
-  #lastSync: Date;
+  private destructors: Set<() => void>;
+  private messageStream: ReadableStream<InboundMessage & { timestamp: number }>;
 
   constructor(private socket: WebSocket) {
-    this.subscribers = new Set();
     this.room = new Room();
-    this.#lastSync = new Date();
-    this.socket.addEventListener('message', ev => {
-      const { data, timeStamp } = ev;
+    this.destructors = new Set();
+    socket.addEventListener('close', () => {
+      this.destructors.forEach(f => f());
+    });
 
-      if ('string' === typeof data) {
-        const message = JSON.parse(data) as InboundMessage;
-        message.key = message.key.replaceAll(/=+$/, '');
+    this.messageStream = new ReadableStream({
+      start: controller => {
+        socket.addEventListener('message', (ev: MessageEvent<unknown>) => {
+          const { data, timeStamp: timestamp } = ev;
+          if ('string' === typeof data) {
+            const message = JSON.parse(data) as InboundMessage; // TODO: validate
+            message.key = message.key.replace(/=+$/, '').replaceAll('+', '-').replaceAll('/', '_'); // TODO: refine this encoding
 
-        if (message.type === 'edit') this.#lastSync = new Date(message.data.timestamp);
-        if (message.type === 'connect') this.room.joined(message.key, message.name);
-        if (message.type === 'disconnect') this.room.left(message.key);
+            if (message.type === 'disconnect') this.room.left(message.key);
+            else this.room.joined(message.key, message.name);
 
-        this.subscribers.forEach(sub => sub(message, timeStamp));
-      }
+            controller.enqueue(Object.assign(message, { timestamp }));
+          }
+        });
+      },
     });
   }
 
@@ -90,25 +94,19 @@ export class ChatConnection {
   close() {
     this.socket.close();
   }
-  subscribe(subsciber: Subscriber) {
-    this.subscribers.add(subsciber);
-    return () => this.unsubscribe(subsciber);
-  }
-  unsubscribe(subsciber: Subscriber) {
-    this.subscribers.delete(subsciber);
-  }
-
-  get lastSync() {
-    return this.#lastSync;
+  getMessageStream() {
+    const [s1, s2] = this.messageStream.tee();
+    this.messageStream = s1;
+    return s2;
   }
 }
 
 export const open = (roomId: string, name: string) =>
   new Promise<ChatConnection>(resolve => {
     const sock = new WebSocket(endpoint + roomId + '?name=' + str2hex(name));
-    sock.onopen = () => {
-      resolve(new ChatConnection(sock));
-    };
+    const conn = new ChatConnection(sock);
+    sock.addEventListener('open', () => resolve(conn));
+    sock.addEventListener('error', console.error);
   });
 
 export type Cursor = {
@@ -130,7 +128,8 @@ export type Selection = {
 
 export const useChatConnection = (
   conn: ChatConnection,
-  updateEditor: (changes: editor.IModelContentChange[]) => void
+  updateEditor: (changes: editor.IModelContentChange[]) => void,
+  setEditorValue: (value: string) => void
 ) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [cursors, setCursors] = useState<Cursor[]>([]);
@@ -140,76 +139,88 @@ export const useChatConnection = (
     const pushMessage = (message: ChatMessage) => {
       setMessages(messages => [message, ...messages]);
     };
-    return conn.subscribe((message, timestamp) => {
-      switch (message.type) {
-        case 'edit': {
-          updateEditor(message.data.changes);
-          break;
-        }
-        case 'cursormove': {
-          const { key: uid, name, data } = message;
-          setCursors(cursors =>
-            cursors
-              .filter(v => v.uid !== uid)
-              .concat({
+    const abortController = new AbortController();
+    conn.getMessageStream().pipeTo(
+      new WritableStream({
+        write(message) {
+          const { timestamp } = message;
+
+          switch (message.type) {
+            case 'edit': {
+              updateEditor(message.data.changes);
+              break;
+            }
+            case 'cursormove': {
+              const { key: uid, name, data } = message;
+              setCursors(cursors =>
+                cursors
+                  .filter(v => v.uid !== uid)
+                  .concat({
+                    uid,
+                    name,
+                    line: data.lineNumber,
+                    column: data.column,
+                  })
+              );
+              break;
+            }
+            case 'selection': {
+              const { key: uid, name, data } = message;
+              setSelections(selections =>
+                selections
+                  .filter(v => v.uid !== uid)
+                  .concat({
+                    uid,
+                    name,
+                    startLine: data.startLineNumber,
+                    startColumn: data.startColumn,
+                    endLine: data.endLineNumber,
+                    endColumn: data.endColumn,
+                  })
+              );
+              break;
+            }
+            case 'chat': {
+              const { key: uid, name, data } = message;
+              pushMessage({
+                type: 'chat',
                 uid,
                 name,
-                line: data.lineNumber,
-                column: data.column,
-              })
-          );
-          break;
-        }
-        case 'selection': {
-          const { key: uid, name, data } = message;
-          setSelections(selections =>
-            selections
-              .filter(v => v.uid !== uid)
-              .concat({
-                uid,
-                name,
-                startLine: data.startLineNumber,
-                startColumn: data.startColumn,
-                endLine: data.endLineNumber,
-                endColumn: data.endColumn,
-              })
-          );
-          break;
-        }
-        case 'chat': {
-          const { key, name, data } = message;
-          pushMessage({
-            type: 'chat',
-            key,
-            name,
-            content: data,
-            date: new Date(timestamp),
-          });
-          break;
-        }
-        case 'connect': {
-          const { name } = message;
-          // TODO: load full text when connectng
-          pushMessage({
-            type: 'info',
-            content: name + 'が接続しました',
-            date: new Date(timestamp),
-          });
-          break;
-        }
-        case 'disconnect': {
-          const { key: uid, name } = message;
-          setCursors(cursors => cursors.filter(c => c.uid !== uid));
-          setSelections(selections => selections.filter(f => f.uid !== uid));
-          pushMessage({
-            type: 'info',
-            content: name + 'が切断しました',
-            date: new Date(timestamp),
-          });
-          break;
-        }
-      }
-    });
+                content: data,
+                date: new Date(timestamp),
+              });
+              break;
+            }
+            case 'connect': {
+              const { name, data: fullText } = message;
+              setEditorValue(fullText);
+              pushMessage({
+                type: 'info',
+                content: name + 'が接続しました',
+                date: new Date(timestamp),
+              });
+              break;
+            }
+            case 'disconnect': {
+              const { key: uid, name } = message;
+              setCursors(cursors => cursors.filter(c => c.uid !== uid));
+              setSelections(selections => selections.filter(f => f.uid !== uid));
+              pushMessage({
+                type: 'info',
+                content: name + 'が切断しました',
+                date: new Date(timestamp),
+              });
+              break;
+            }
+          }
+        },
+      }),
+      { signal: abortController.signal }
+    );
+    return () => {
+      abortController.abort();
+      conn.close();
+    };
   }, []);
 
   return [messages, cursors, selections] as const;

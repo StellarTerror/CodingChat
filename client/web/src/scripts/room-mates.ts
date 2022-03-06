@@ -1,3 +1,5 @@
+import { getRandomColor } from './utils';
+
 export class Room {
   private roomMates: Map<string, string>;
   private styleElement: HTMLStyleElement;
@@ -13,25 +15,68 @@ export class Room {
   }
 
   joined(uid: string, name: string) {
-    this.roomMates.set(uid, name);
-    this.reflect();
+    if (!this.roomMates.has(uid)) {
+      this.roomMates.set(uid, name);
+      this.reflect();
+    }
   }
   left(uid: string) {
     return this.roomMates.delete(uid);
   }
 
   private getStyles() {
-    const csss: string[] = [];
+    const csss: string[] = [
+      `
+.${selectionSuffix} {
+  opacity: .5;
+  position: relative;
+  margin-inline: 2px;
+  z-index: 2;
+}
+.${cursorSuffix} {
+  width: 2px !important;
+  position: relative;
+  z-index: 2;
+}
+.${cursorSuffix}::after, .${selectionSuffix}::after {
+  position: relative;
+  top: -5px;
+  right: -5px;
+
+  font-size: calc(1em - 4px);
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 1px;
+  z-index: 3;
+  color: white;
+}
+`,
+    ];
     for (const uid of this.roomMates.keys()) {
-      csss.push(`.${cursorSuffix}-${uid}, .${selectionSuffix}-${uid} {}`);
+      const color = getRandomColor(uid);
+      csss.push(`
+.${cursorSuffix}.${suffix}-${uid}:hover::after {
+  content: "${this.roomMates.get(uid)!}";
+  background-color: ${color};
+}
+.${suffix}-${uid}-bg {
+  background-color: ${color};
+}
+.${suffix}-${uid}-color {
+  color: ${color};
+}
+`);
     }
-    return csss.join('\n');
+    return csss.join('');
   }
 
   reflect() {
-    this.styleElement.innerText = this.getStyles();
+    requestIdleCallback(() => {
+      this.styleElement.innerHTML = this.getStyles();
+    });
   }
 }
 
-export const cursorSuffix = '__codingchat-cursor';
-export const selectionSuffix = '__codingchat-selection';
+export const suffix = '__codingchat';
+export const cursorSuffix = suffix + '-cursor';
+export const selectionSuffix = suffix + '-selection';

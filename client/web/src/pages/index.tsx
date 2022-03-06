@@ -1,63 +1,142 @@
-import { VFC, Fragment, useMemo, Suspense, useState } from 'react';
+import { VFC, useMemo, Suspense, useState, MouseEvent } from 'react';
 import { Link, useNavigate } from '@tanstack/react-location';
 import { Header } from '~/components/Header';
 import { Loadable, sync } from '~/scripts/promise';
 import { RoomList, getRoomList, createRoom } from '~/scripts/room-api';
+import styled from 'styled-components';
+import { BlueButton, blueButtonCss } from '~/components/Button';
 
-export const Welcome: VFC = () => {
+export const Welcome = styled<VFC>(props => {
   const roomList = useMemo(() => sync(getRoomList()), []);
   return (
-    <Fragment>
+    <main {...props}>
       <Header />
       <div>
-        <div>
+        <section>
           CodingChatはオンラインでのペアプログラミングを支援するサービスです。
           <br />
           誰でも無料でオンラインでコードを共同編集し実行することができます。
-        </div>
-        <h2>部屋一覧</h2>
-        <Suspense fallback={null}>
-          <Rooms roomList={roomList} />
-        </Suspense>
+        </section>
+        <section>
+          <Suspense fallback={null}>
+            <h2>公開部屋一覧</h2>
+            <div>
+              <Rooms roomList={roomList} />
+            </div>
+          </Suspense>
+        </section>
         <NewRoom />
       </div>
-    </Fragment>
+    </main>
   );
-};
+})`
+  > div:last-child {
+    padding-block: 2em;
+    text-align: center;
+    > * {
+      padding: 2em 0.5em;
+    }
+    > section:nth-child(2) > h2 {
+      font-size: 1.25em;
+      + div {
+        margin-inline: auto;
+        max-width: 30em;
+      }
+    }
+  }
+`;
 
-const Rooms: VFC<{ roomList: Loadable<RoomList> }> = ({ roomList }) => {
+const Rooms = styled<VFC<{ roomList: Loadable<RoomList> }>>(({ roomList, ...rest }) => {
   const list = roomList.get();
-  return (
-    <ul>
+  return list.length === 0 ? (
+    <p {...rest}>no rooms</p>
+  ) : (
+    <ul {...rest}>
       {list.map(({ name, id, participantsNumber }) => (
         <li key={id}>
-          <h3>{name}</h3>
-          <span>{participantsNumber}人</span>
-          <Link to={'/chat/' + id}></Link>
+          <div>
+            <h3>{name}</h3>
+            <span>{participantsNumber}人接続中</span>
+          </div>
+          <Link to={'/chat/' + id}>入室</Link>
         </li>
       ))}
     </ul>
   );
-};
+})`
+  padding: 0;
+  list-style: none;
+  > li {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    border-bottom: 0;
+    :last-child {
+      border-bottom: 1px solid #ccc;
+    }
+    padding: 0 1rem;
+    > div {
+      padding: 0.5em 0;
+      text-align: start;
+      flex-grow: 1;
+      > h3 {
+        font-weight: bold;
+      }
+    }
+    > a {
+      display: block;
+      ${blueButtonCss}
+      text-decoration: none;
+    }
+  }
+`;
 
-const NewRoom = () => {
+const NewRoom = styled<VFC>(props => {
   const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const navigate = useNavigate();
 
-  const create = () => {
+  const create = (ev: MouseEvent) => {
     createRoom(name, isPublic).then(id => navigate({ to: '/chat/' + id }));
+    ev.preventDefault();
   };
 
   return (
-    <div>
-      ※新しい部屋の作成時に、誰も入っていない部屋は自動的に削除されます。
-      <h4>部屋を新規作成</h4>
-      部屋名：
-      <input type='text' value={name} onChange={ev => setName(ev.target.value)} />
-      <input type='checkbox' checked={isPublic} onChange={ev => setIsPublic(ev.target.checked)} />
-      公開
-      <button onClick={create}>作成</button>
+    <div {...props}>
+      <h2>部屋を新規作成</h2>
+      <form>
+        <input type='text' value={name} onChange={ev => setName(ev.target.value)} placeholder='部屋名' />
+        <label>
+          <input type='checkbox' checked={isPublic} onChange={ev => setIsPublic(ev.target.checked)} />
+          公開
+        </label>
+        <BlueButton onClick={create}>作成</BlueButton>
+      </form>
+      <span>※新しい部屋の作成時に、誰も入っていない部屋は自動的に削除されます。</span>
     </div>
   );
-};
+})`
+  > h2 {
+    font-size: 1.25em;
+  }
+  > form {
+    display: flex;
+    align-items: center;
+    margin-inline: auto;
+    max-width: 30em;
+    > input[type='text'] {
+      border: 1px solid #ccc;
+      padding-inline: 0.5rem;
+      font-size: 1em;
+      line-height: 2;
+      flex-grow: 1;
+    }
+    > label {
+      margin-inline: 0.5em;
+    }
+  }
+  > span {
+    font-size: 0.9em;
+    line-height: 2;
+  }
+`;
