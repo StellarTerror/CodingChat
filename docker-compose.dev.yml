@@ -1,0 +1,23 @@
+version: "3"
+
+services:
+  web-client:
+    build:
+      context: ./client/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - 8080:8080
+    volumes:
+      - ./client/web/src:/workspace/src
+    environment:
+      - PORT=8080
+      - API_HOST=api:3000
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./api/src:/workspace/src
+    environment:
+      - PORT=3000

@@ -28,7 +28,7 @@ module.exports = (env, argv) => {
             {
               loader: 'ts-loader',
               options: {
-                getCustomTransformers: () => (isDev ? { before: [ReactRefreshTypeScript()] } : {}),
+                getCustomTransformers: () => (isDev ? { before: [ReactRefreshTypeScript()] } : void 0),
                 compilerOptions: { jsx: 'react-jsx' + (isDev ? 'dev' : '') },
               },
             },
@@ -60,7 +60,7 @@ module.exports = (env, argv) => {
     },
     plugins: [
       new HtmlWebpackPlugin({
-        template: path.resolve(__dirname, './template.html'),
+        template: path.resolve(__dirname, './src/template.html'),
       }),
       new MonacoEditorWebpackPlugin(),
       isDev && new ReactRefreshWebpackPlugin(),
@@ -68,7 +68,7 @@ module.exports = (env, argv) => {
     devServer: {
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          target: 'http://' + (process.env.API_HOST ?? 'localhost:3000'),
           pathRewrite: { '^/api': '' },
           ws: true,
         },
@@ -77,7 +77,7 @@ module.exports = (env, argv) => {
         directory: path.resolve(__dirname, './build'),
       },
       historyApiFallback: true,
-      port: 8000, // TODO: 8080
+      port: process.env.PORT ?? 8080,
     },
   };
 };

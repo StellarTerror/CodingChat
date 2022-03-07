@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  web-client:
+    build:
+      context: ./client/web
+      dockerfile: Dockerfile.prod
+    ports:
+      - 8080:8080
+    environment:
+      - PORT=8080
+      - API_HOST=api:3000
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.prod
+    environment:
+      - PORT=3000
