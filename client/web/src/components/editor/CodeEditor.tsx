@@ -69,8 +69,7 @@ export const useCodeEditor = (language: string, cursors: Cursor[], selections: S
           compositioning.current = true;
           resolve(instanceRef.current.executeEdits('coding-chat', ops));
           compositioning.current = false;
-        }
-        else setTimeout(f);
+        } else setTimeout(f);
       };
       f();
     });
@@ -82,8 +81,7 @@ export const useCodeEditor = (language: string, cursors: Cursor[], selections: S
         compositioning.current = true;
         instanceRef.current.setValue(value);
         compositioning.current = false;
-      }
-      else setTimeout(f);
+      } else setTimeout(f);
     };
     f();
   }, []);

@@ -3,22 +3,26 @@ const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 
-
-const corsOption ={
+const corsOption = {
   origin: ['http://localhost:8080', 'http://www.codingchat.net', 'https://www.codingchat.net'],
 };
 
 const apiHost = process.env.API_HOST ?? 'localhost:3000';
 
 const app = express();
-const proxy = createProxyMiddleware('/api', { target: `http://${ apiHost }/`, pathRewrite: { '^/api': '' }, ws: true, changeOrigin: true });
+const proxy = createProxyMiddleware('/api', {
+  target: `http://${apiHost}/`,
+  pathRewrite: { '^/api': '' },
+  ws: true,
+  changeOrigin: true,
+});
 
 app
   .options('/api', cors(corsOption))
   .use(proxy)
   .use(express.static(path.join(__dirname, 'build')));
 
-app.get('/*', function(req, res) {
+app.get('/*', function (req, res) {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 

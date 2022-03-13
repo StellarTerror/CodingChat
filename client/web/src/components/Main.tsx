@@ -107,9 +107,12 @@ export const Main = styled<VFC<{ chatConnection: Loadable<ChatConnection> }>>(({
   const conn = chatConnection.get();
 
   const reflectors = {
-    edits: useCallback((changes: editor.IModelContentChange[], full_text: string) => {
+    edits: useCallback(
+      (changes: editor.IModelContentChange[], full_text: string) => {
         conn.sendMessage({ type: 'edit', data: { changes, timestamp: Date.now(), full_text } });
-      }, [conn]),
+      },
+      [conn]
+    ),
     cursor: useCallback((position: Position) => conn.sendMessage({ type: 'cursormove', data: position }), [conn]),
     selection: useCallback((selection: Selection) => conn.sendMessage({ type: 'selection', data: selection }), [conn]),
   };
@@ -140,23 +143,26 @@ export const Main = styled<VFC<{ chatConnection: Loadable<ChatConnection> }>>(({
     setStdout(stdout ?? '');
   }, [language]);
 
-  const factory = useCallback((node: TabNode) => {
-    const component = node.getComponent() as FlexLayoutComponentName;
-    switch (component) {
-      case 'code-editor':
-        return <CodeEditor />;
-      case 'log-editor':
-        return <LogView />;
-      case 'input-editor':
-        return <StdinEditor />;
-      case 'output-editor':
-        return <StdoutView />;
-      case 'chat':
-        return <ChatView messages={messages} send={chat} />;
-      default:
-        return <span>unresolved component</span>;
-    }
-  }, [language, cursors, selections, messages]);
+  const factory = useCallback(
+    (node: TabNode) => {
+      const component = node.getComponent() as FlexLayoutComponentName;
+      switch (component) {
+        case 'code-editor':
+          return <CodeEditor />;
+        case 'log-editor':
+          return <LogView />;
+        case 'input-editor':
+          return <StdinEditor />;
+        case 'output-editor':
+          return <StdoutView />;
+        case 'chat':
+          return <ChatView messages={messages} send={chat} />;
+        default:
+          return <span>unresolved component</span>;
+      }
+    },
+    [language, cursors, selections, messages]
+  );
 
   return (
     <div {...rest}>

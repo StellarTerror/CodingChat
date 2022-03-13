@@ -226,6 +226,6 @@ const read = <T>(reader: ReadableStreamDefaultReader<T>, processor: (chunk: T) =
 
     await processor(result.value);
     return reader.read().then(handler);
-  }
+  };
   return reader.read().then(handler);
 };

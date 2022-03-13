@@ -12,15 +12,18 @@ const tickets = new Map<string | undefined, symbol>();
 const getTickets = (pageKey: string | undefined) => {
   if (!tickets.has(pageKey)) tickets.set(pageKey, Symbol());
   return tickets.get(pageKey) as symbol;
-}
+};
 
 export const ChatPage: VFC = () => {
   const location = useLocation();
-  const { data: { roomInfo } } = useMatch<LocationGenerics>();
+  const {
+    data: { roomInfo },
+  } = useMatch<LocationGenerics>();
 
   const [userName, setUserName] = useState<string>();
   const chatConnection = useMemo(() => {
-    if (userName != null && roomInfo != null) return useLoad(getTickets(location.current.key), () => open(roomInfo.id, userName));
+    if (userName != null && roomInfo != null)
+      return useLoad(getTickets(location.current.key), () => open(roomInfo.id, userName));
   }, [userName]);
 
   return chatConnection == null ? (

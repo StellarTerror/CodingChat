@@ -6,7 +6,7 @@ export const encode = (data: Uint8Array): string => {
 
   for (let i = 0; i < n; ++i) {
     const sur = data.reduce((p, c) => ((p << 8) + c) % RADIX, 0);
-    res.push("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[sur]!);
+    res.push('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'[sur]!);
     console.log(data);
     minus(data, sur);
     console.log(data);
@@ -21,7 +21,7 @@ const minus = (arr: Uint8Array, b: number) => {
   for (let i = arr.length - 1; b > 0 && i >= 0; --i) {
     const n = arr[i]! - b;
     if (n < 0) {
-      const a = n % 256 + 256;
+      const a = (n % 256) + 256;
       arr[i] = a;
       b = (a - n) / 256;
     } else {
@@ -35,8 +35,7 @@ const div = (arr: Uint8Array, b: number) => {
   let sur = 0;
   arr.forEach((v, i) => {
     sur = (sur << 8) + v;
-    arr[i] = sur / b | 0;
+    arr[i] = (sur / b) | 0;
     sur %= b;
   });
-}
-
+};

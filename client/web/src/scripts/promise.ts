@@ -50,4 +50,4 @@ export const useLoad = <T>(key: symbol, loader: () => Promise<T>) => {
   if (!syncs.has(key)) syncs.set(key, sync(loader()));
 
   return syncs.get(key) as Loadable<T>;
-}
+};

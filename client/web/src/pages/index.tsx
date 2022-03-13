@@ -10,7 +10,7 @@ const tickets = new Map<string | undefined, symbol>();
 const getTickets = (pageKey: string | undefined) => {
   if (!tickets.has(pageKey)) tickets.set(pageKey, Symbol());
   return tickets.get(pageKey) as symbol;
-}
+};
 
 export const Welcome = styled<VFC>(props => {
   const location = useLocation();

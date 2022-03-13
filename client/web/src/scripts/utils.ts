@@ -1,4 +1,4 @@
-import {encode as base62Encode} from "./base62";
+import { encode as base62Encode } from './base62';
 
 export const cyrb53 = (str: string, seed = 0) => {
   let h1 = 0xdeadbeef ^ seed,
