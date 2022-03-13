@@ -1,3 +1,5 @@
+import {encode as base62Encode} from "./base62";
+
 export const cyrb53 = (str: string, seed = 0) => {
   let h1 = 0xdeadbeef ^ seed,
     h2 = 0x41c6ce57 ^ seed;
@@ -22,6 +24,7 @@ export const str2hex = (str: string) =>
     .encode(str)
     .reduce<string[]>((p, c) => (p.push(c.toString(16).padStart(2, '0')), p), [])
     .join('');
+export const base64ToBase62 = (str: string) => base62Encode(encoder.encode(atob(str)));
 
 export class ResponseError extends Error {
   constructor(readonly response: Response) {

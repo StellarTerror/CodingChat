@@ -1,7 +1,7 @@
 import type { IPosition, IRange, editor } from 'monaco-editor';
 import { useLayoutEffect, useState } from 'react';
 import { Room } from './room-mates';
-import { str2hex } from './utils';
+import { base64ToBase62, str2hex } from './utils';
 
 const endpoint = 'ws://' + window.location.host + '/api/ws/';
 
@@ -76,7 +76,7 @@ export class ChatConnection {
           const { data, timeStamp: timestamp } = ev;
           if ('string' === typeof data) {
             const message = JSON.parse(data) as InboundMessage; // TODO: validate
-            message.key = message.key.replace(/=+$/, '').replaceAll('+', '-').replaceAll('/', '_'); // TODO: refine this encoding
+            message.key = base64ToBase62(message.key);
 
             if (message.type === 'disconnect') this.room.left(message.key);
             else this.room.joined(message.key, message.name);
