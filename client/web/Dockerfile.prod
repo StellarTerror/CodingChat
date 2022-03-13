@@ -1,0 +1,30 @@
+FROM node:16-alpine AS builder
+
+WORKDIR /workspace
+
+COPY package.json .
+
+RUN npm i
+
+COPY . .
+
+RUN npm run build
+
+
+FROM node:16-alpine AS modules
+
+WORKDIR /workspace
+
+COPY package.json .
+
+RUN npm i --production
+
+FROM node:16-alpine AS runner
+
+WORKDIR /app
+
+COPY --from=builder /workspace/build ./build
+COPY --from=modules /workspace/node_modules ./node_modules
+COPY server.js .
+
+CMD ["node", "server.js"]
