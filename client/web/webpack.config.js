@@ -53,8 +53,8 @@ module.exports = (env, argv) => {
       },
     },
     output: {
-      path: path.resolve(__dirname, './build'),
-      filename: isDev ? '[id].js' : '[contenthash].js',
+      path: path.resolve(__dirname, './build/'),
+      filename: isDev ? 'static/[id].js' : 'static/[contenthash].js',
       publicPath: '/',
       clean: true,
     },
@@ -69,12 +69,11 @@ module.exports = (env, argv) => {
       proxy: {
         '/api': {
           target: 'http://' + (process.env.API_HOST ?? 'localhost:3000'),
-          pathRewrite: { '^/api': '' },
           ws: true,
         },
       },
       static: {
-        directory: path.resolve(__dirname, './build'),
+        directory: path.resolve(__dirname, './build/static'),
       },
       historyApiFallback: true,
       port: process.env.PORT ?? 8080,

@@ -1,12 +1,15 @@
-from multiprocessing import connection
-from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from typing import List
 import json
 import binascii
 import uuid
 from pydantic import BaseModel
+from pathlib import Path
+from typing import Union
+import os
 
 app = FastAPI()
 
@@ -19,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.get("/hello")
+@app.get("/api/hello")
 def hello():
     return "Hello World"
 
@@ -71,7 +74,7 @@ class RoomInfo(BaseModel):
     connections: int
     room_id: str
 
-@app.post("/create_room", response_model=str)
+@app.post("/api/create_room", response_model=str)
 async def create_room(room: CreateRoom):
     clean_keys = []
     for room_id in managers:
@@ -87,18 +90,18 @@ async def create_room(room: CreateRoom):
     name[room_id] = room.name
     return room_id
 
-@app.get("/room_info/{room_id}", response_model=RoomInfo)
+@app.get("/api/room_info/{room_id}", response_model=RoomInfo)
 async def room_info(room_id: str):
     try:
         return RoomInfo(name=name[room_id], is_open=is_public[room_id], room_id=room_id, connections=len(managers[room_id]))
     except KeyError:
         raise HTTPException(404, "Room not found")
 
-@app.get("/room_list", response_model=List[RoomInfo])
+@app.get("/api/room_list", response_model=List[RoomInfo])
 async def room_list():
     return list(filter(lambda x: x.is_open is True, [RoomInfo(name=name[room_id], is_open=is_public[room_id], room_id=room_id, connections=len(managers[room_id])) for room_id in managers]))
 
-@app.websocket("/ws/{room_id}")
+@app.websocket("/api/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, name: str = "Anonymous"):
     print(room_id)
     manager = None
@@ -129,3 +132,24 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, name: str = "An
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(json.dumps({"name": binascii.unhexlify(name).decode('utf-8'), "key": manager.get_key(websocket), "type": "disconnect", "data": ""}))
+
+def serve_react_app(app: FastAPI, build_dir: Union[Path, str]) -> FastAPI:
+
+    if isinstance(build_dir, str):
+        build_dir = Path(build_dir)
+
+    app.mount(
+        "/static/",
+        StaticFiles(directory=build_dir / "static/"),
+        name="React App static files",
+    )
+    templates = Jinja2Templates(directory=build_dir.as_posix())
+
+    @app.get("/{full_path:path}")
+    async def serve_react_app(request: Request, full_path: str):
+        return templates.TemplateResponse("index.html", {"request": request})
+
+    return app
+
+if os.environ.get("ENV") == "production":
+    serve_react_app(app, "./build")

@@ -1,4 +1,3 @@
 uvicorn[standard]
 fastapi
-mysqlclient
-sqlalchemy
+jinja2
