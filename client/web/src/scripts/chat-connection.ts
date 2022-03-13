@@ -139,89 +139,93 @@ export const useChatConnection = (
     const pushMessage = (message: ChatMessage) => {
       setMessages(messages => [message, ...messages]);
     };
-    const abortController = new AbortController();
-    conn.getMessageStream().pipeTo(
-      new WritableStream({
-        write(message) {
-          const { type, timestamp } = message;
+    const reader = conn.getMessageStream().getReader();
+    read(reader, message => {
+      const { type, timestamp } = message;
 
-          switch (type) {
-            case 'edit': {
-              updateEditor(message.data.changes);
-              break;
-            }
-            case 'cursormove': {
-              const { key: uid, name, data } = message;
-              setCursors(cursors =>
-                cursors
-                  .filter(v => v.uid !== uid)
-                  .concat({
-                    uid,
-                    name,
-                    line: data.lineNumber,
-                    column: data.column,
-                  })
-              );
-              break;
-            }
-            case 'selection': {
-              const { key: uid, name, data } = message;
-              setSelections(selections =>
-                selections
-                  .filter(v => v.uid !== uid)
-                  .concat({
-                    uid,
-                    name,
-                    startLine: data.startLineNumber,
-                    startColumn: data.startColumn,
-                    endLine: data.endLineNumber,
-                    endColumn: data.endColumn,
-                  })
-              );
-              break;
-            }
-            case 'chat': {
-              const { key: uid, name, data } = message;
-              pushMessage({
-                type: 'chat',
+      switch (type) {
+        case 'edit': {
+          updateEditor(message.data.changes);
+          break;
+        }
+        case 'cursormove': {
+          const { key: uid, name, data } = message;
+          setCursors(cursors =>
+            cursors
+              .filter(v => v.uid !== uid)
+              .concat({
                 uid,
                 name,
-                content: data,
-                date: new Date(timestamp),
-              });
-              break;
-            }
-            case 'connect': {
-              const { name, data: fullText } = message;
-              setEditorValue(fullText);
-              pushMessage({
-                type: 'info',
-                content: name + 'が接続しました',
-                date: new Date(timestamp),
-              });
-              break;
-            }
-            case 'disconnect': {
-              const { key: uid, name } = message;
-              setCursors(cursors => cursors.filter(c => c.uid !== uid));
-              setSelections(selections => selections.filter(f => f.uid !== uid));
-              pushMessage({
-                type: 'info',
-                content: name + 'が切断しました',
-                date: new Date(timestamp),
-              });
-              break;
-            }
-          }
-        },
-      }),
-      { signal: abortController.signal }
-    );
+                line: data.lineNumber,
+                column: data.column,
+              })
+          );
+          break;
+        }
+        case 'selection': {
+          const { key: uid, name, data } = message;
+          setSelections(selections =>
+            selections
+              .filter(v => v.uid !== uid)
+              .concat({
+                uid,
+                name,
+                startLine: data.startLineNumber,
+                startColumn: data.startColumn,
+                endLine: data.endLineNumber,
+                endColumn: data.endColumn,
+              })
+          );
+          break;
+        }
+        case 'chat': {
+          const { key: uid, name, data } = message;
+          pushMessage({
+            type: 'chat',
+            uid,
+            name,
+            content: data,
+            date: new Date(timestamp),
+          });
+          break;
+        }
+        case 'connect': {
+          const { name, data: fullText } = message;
+          setEditorValue(fullText);
+          pushMessage({
+            type: 'info',
+            content: name + 'が接続しました',
+            date: new Date(timestamp),
+          });
+          break;
+        }
+        case 'disconnect': {
+          const { key: uid, name } = message;
+          setCursors(cursors => cursors.filter(c => c.uid !== uid));
+          setSelections(selections => selections.filter(f => f.uid !== uid));
+          pushMessage({
+            type: 'info',
+            content: name + 'が切断しました',
+            date: new Date(timestamp),
+          });
+          break;
+        }
+      }
+    });
     return () => {
-      abortController.abort();
       conn.close();
     };
   }, []);
 
   return [messages, cursors, selections] as const;
+};
+
+const read = <T>(reader: ReadableStreamDefaultReader<T>, processor: (chunk: T) => void | Promise<void>) => {
+  const handler = async (result: ReadableStreamDefaultReadResult<T>): Promise<undefined> => {
+    if (result.done) return;
+
+    await processor(result.value);
+    return reader.read().then(handler);
+  }
+  return reader.read().then(handler);
 };
