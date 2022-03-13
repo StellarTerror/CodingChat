@@ -1,21 +1,26 @@
 import { VFC, useState, useMemo, Suspense, MouseEvent } from 'react';
 import { Main } from '~/components/Main';
-import { sync } from '~/scripts/promise';
+import { useLoad } from '~/scripts/promise';
 import { open } from '~/scripts/chat-connection';
-import { Link, useMatch } from '@tanstack/react-location';
+import { Link, useMatch, useLocation } from '@tanstack/react-location';
 import { LocationGenerics } from '~/components/App';
 import { RoomInfo } from '~/scripts/room-api';
 import styled from 'styled-components';
 import { BlueButton } from '~/components/Button';
 
+const tickets = new Map<string | undefined, symbol>();
+const getTickets = (pageKey: string | undefined) => {
+  if (!tickets.has(pageKey)) tickets.set(pageKey, Symbol());
+  return tickets.get(pageKey) as symbol;
+}
+
 export const ChatPage: VFC = () => {
-  const {
-    data: { roomInfo },
-  } = useMatch<LocationGenerics>();
+  const location = useLocation();
+  const { data: { roomInfo } } = useMatch<LocationGenerics>();
 
   const [userName, setUserName] = useState<string>();
   const chatConnection = useMemo(() => {
-    if (userName != null && roomInfo != null) return sync(open(roomInfo.id, userName));
+    if (userName != null && roomInfo != null) return useLoad(getTickets(location.current.key), () => open(roomInfo.id, userName));
   }, [userName]);
 
   return chatConnection == null ? (

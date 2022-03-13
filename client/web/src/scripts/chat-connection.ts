@@ -143,9 +143,9 @@ export const useChatConnection = (
     conn.getMessageStream().pipeTo(
       new WritableStream({
         write(message) {
-          const { timestamp } = message;
+          const { type, timestamp } = message;
 
-          switch (message.type) {
+          switch (type) {
             case 'edit': {
               updateEditor(message.data.changes);
               break;

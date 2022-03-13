@@ -44,3 +44,10 @@ export class Sync<T> implements Loadable<T> {
   }
 }
 export const sync = <T>(promise: Promise<T>) => new Sync(promise);
+
+const syncs = new Map<symbol, Loadable<unknown>>();
+export const useLoad = <T>(key: symbol, loader: () => Promise<T>) => {
+  if (!syncs.has(key)) syncs.set(key, sync(loader()));
+
+  return syncs.get(key) as Loadable<T>;
+}

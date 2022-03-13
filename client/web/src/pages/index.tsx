@@ -1,13 +1,20 @@
-import { VFC, useMemo, Suspense, useState, MouseEvent } from 'react';
-import { Link, useNavigate } from '@tanstack/react-location';
+import { VFC, Suspense, useState, MouseEvent } from 'react';
+import { Link, useLocation, useNavigate } from '@tanstack/react-location';
 import { Header } from '~/components/Header';
-import { Loadable, sync } from '~/scripts/promise';
+import { Loadable, useLoad } from '~/scripts/promise';
 import { RoomList, getRoomList, createRoom } from '~/scripts/room-api';
 import styled from 'styled-components';
 import { BlueButton, blueButtonCss } from '~/components/Button';
 
+const tickets = new Map<string | undefined, symbol>();
+const getTickets = (pageKey: string | undefined) => {
+  if (!tickets.has(pageKey)) tickets.set(pageKey, Symbol());
+  return tickets.get(pageKey) as symbol;
+}
+
 export const Welcome = styled<VFC>(props => {
-  const roomList = useMemo(() => sync(getRoomList()), []);
+  const location = useLocation();
+  const roomList = useLoad(getTickets(location.current.key), getRoomList);
   return (
     <main {...props}>
       <Header />
