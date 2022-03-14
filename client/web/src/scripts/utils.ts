@@ -31,3 +31,16 @@ export class ResponseError extends Error {
     super('status code: ' + response.status.toString().padStart(3, '0') + '\nresponse: ' + response.text());
   }
 }
+
+export const readStream = <T>(
+  reader: ReadableStreamDefaultReader<T>,
+  processor: (chunk: T) => void | Promise<void>
+) => {
+  const handler = async (result: ReadableStreamDefaultReadResult<T>): Promise<undefined> => {
+    if (result.done) return;
+
+    await processor(result.value);
+    return reader.read().then(handler);
+  };
+  return reader.read().then(handler);
+};

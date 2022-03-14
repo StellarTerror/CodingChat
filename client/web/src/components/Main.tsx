@@ -3,15 +3,14 @@ import 'flexlayout-react/style/light.css';
 import { FC, useCallback, useState, VFC } from 'react';
 import { useTextEditor, useReadonlyTextEditor } from '~/components/editor/TextEditor';
 import { Loadable } from '~/scripts/promise';
-import { ChatConnection, useChatConnection } from '~/scripts/chat-connection';
 import { useCodeEditor } from '~/components/editor/CodeEditor';
 import { Header } from '~/components/Header';
 import { run } from '~/scripts/code-run';
 import { Link } from '@tanstack/react-location';
 import ChatView from './Chat';
-import { editor, Position, Selection } from 'monaco-editor';
 import styled from 'styled-components';
 import { PlaneButton, planeButtonCss } from './Button';
+import { WebsocketConnectionManager } from '~/scripts/websocket/connection';
 
 const flexLayoutModel = Model.fromJson({
   global: {},
@@ -103,32 +102,11 @@ const flexLayoutModel = Model.fromJson({
 });
 type FlexLayoutComponentName = 'chat' | 'log-editor' | 'input-editor' | 'output-editor' | 'code-editor';
 
-export const Main = styled<VFC<{ chatConnection: Loadable<ChatConnection> }>>(({ chatConnection, ...rest }) => {
-  const conn = chatConnection.get();
-
-  const reflectors = {
-    edits: useCallback(
-      (changes: editor.IModelContentChange[], full_text: string) => {
-        conn.sendMessage({ type: 'edit', data: { changes, timestamp: Date.now(), full_text } });
-      },
-      [conn]
-    ),
-    cursor: useCallback((position: Position) => conn.sendMessage({ type: 'cursormove', data: position }), [conn]),
-    selection: useCallback((selection: Selection) => conn.sendMessage({ type: 'selection', data: selection }), [conn]),
-  };
-
-  const chat = useCallback((message: string) => conn.sendMessage({ type: 'chat', data: message }), [conn]);
-
-  const applyEdits = useCallback((changes: editor.IModelContentChange[]) => {
-    execEdits(changes);
-  }, []);
-  const overwrite = useCallback((v: string) => {
-    setValue(v);
-  }, []);
+export const Main = styled<VFC<{ wsConnection: Loadable<WebsocketConnectionManager> }>>(({ wsConnection, ...rest }) => {
+  const conn = wsConnection.get();
 
   const [language, languageSelect] = useLanguageSelect();
-  const [messages, cursors, selections] = useChatConnection(conn, applyEdits, overwrite);
-  const [CodeEditor, getCode, execEdits, setValue] = useCodeEditor(language, cursors, selections, reflectors);
+  const [CodeEditor, getCode] = useCodeEditor(conn, language);
   const [LogView, setLog] = useReadonlyTextEditor();
   const [StdinEditor, , getStdin] = useTextEditor();
   const [StdoutView, setStdout] = useReadonlyTextEditor();
@@ -156,12 +134,12 @@ export const Main = styled<VFC<{ chatConnection: Loadable<ChatConnection> }>>(({
         case 'output-editor':
           return <StdoutView />;
         case 'chat':
-          return <ChatView messages={messages} send={chat} />;
+          return <ChatView connection={conn} />;
         default:
           return <span>unresolved component</span>;
       }
     },
-    [language, cursors, selections, messages]
+    [language]
   );
 
   return (

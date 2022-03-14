@@ -1,41 +1,115 @@
 import { useMonacoEditor } from './Base';
-import { Range, editor, Position, Selection as EditorSelection } from 'monaco-editor';
+import { Range, editor, IPosition, IRange } from 'monaco-editor';
 import { useCallback, useEffect, useRef } from 'react';
-import { Cursor, Selection } from '~/scripts/chat-connection';
 import { cursorSuffix, selectionSuffix, suffix } from '~/scripts/room-mates';
+import { WebsocketConnectionManager } from '~/scripts/websocket/connection';
+import { readStream } from '~/scripts/utils';
+import { pickAndTransformEditorCommand } from '~/scripts/websocket/transformer';
+import { ConnectionKey } from '~/scripts/websocket/types';
+
+type Cursor = {
+  uid: ConnectionKey;
+  name: string;
+  position: IPosition;
+};
+type Selection = {
+  uid: ConnectionKey;
+  name: string;
+  range: IRange;
+};
 
 const defaultValue = ['function x() {', '\tconsole.log("Hello world!");', '}'].join('\n');
 
-type Reflectors = {
-  edits: (chages: editor.IModelContentChange[], fullText: string) => void;
-  cursor: (position: Position) => void;
-  selection: (range: EditorSelection) => void;
-};
-
-export const useCodeEditor = (language: string, cursors: Cursor[], selections: Selection[], reflectors: Reflectors) => {
+export const useCodeEditor = (conn: WebsocketConnectionManager, language: string) => {
   const compositioning = useRef(false);
 
   const effects = useCallback(() => {
     useEffect(() => {
       const instance = instanceRef.current;
-      if (instance != null)
-        return instance.onDidChangeModelContent(ev => {
-          if (!compositioning.current) reflectors.edits(ev.changes, instance.getValue());
-          // compositioning is true if the edits is not manual because the APIs run synchronously.
-        }).dispose;
-    }, [reflectors.edits]);
+      if (instance == null) {
+        console.warn('the instance of the code editor has not yet been created');
+        return;
+      }
+
+      const cleaners = [
+        instance.onDidChangeModelContent(({ changes }) => {
+          if (!compositioning.current)
+            conn.sendMessage({
+              type: 'edit',
+              data: {
+                changes,
+                timestamp: Date.now(),
+                full_text: instance.getValue(),
+              },
+            });
+        }).dispose,
+        instance.onDidChangeCursorPosition(({ position }) => {
+          conn.sendMessage({ type: 'cursormove', data: position });
+        }).dispose,
+        instance.onDidChangeCursorSelection(({ selection }) => {
+          conn.sendMessage({ type: 'selection', data: selection });
+        }).dispose,
+      ];
+
+      return () => cleaners.forEach(f => f());
+    }, []);
 
     useEffect(() => {
       const instance = instanceRef.current;
-      if (instance != null)
-        return instance.onDidChangeCursorSelection(ev => reflectors.selection(ev.selection)).dispose;
-    }, [reflectors.selection]);
+      if (instance == null) {
+        console.warn('the instance of the code editor has not yet been created');
+        return;
+      }
 
-    useEffect(() => {
-      const instance = instanceRef.current;
-      if (instance != null) return instance.onDidChangeCursorPosition(ev => reflectors.cursor(ev.position)).dispose;
-    }, [reflectors.cursor]);
-  }, [reflectors.edits, reflectors.cursor, reflectors.selection]);
+      let cursors: Cursor[] = [];
+      let selections: Selection[] = [];
+      let first = true;
+
+      readStream(conn.getMessageStream().getReader(), message => {
+        const command = pickAndTransformEditorCommand(message);
+        if (command == null) return;
+
+        switch (command.type) {
+          case 'cursormove': {
+            const { uid, name, position } = command;
+            cursors = cursors.filter(v => v.uid !== uid).concat({ uid, name, position });
+            setCursorDecorations(instance, cursors);
+            break;
+          }
+          case 'selection': {
+            const { uid, name, range } = command;
+            selections = selections.filter(v => v.uid !== uid).concat({ uid, name, range });
+            setSelectionDecrations(instance, selections);
+            break;
+          }
+          case 'edit': {
+            const { changes } = command;
+            compositioning.current = true;
+            instance.executeEdits('coding-chat', changes);
+            compositioning.current = false;
+            break;
+          }
+          case 'onconnect': {
+            if (!first) break;
+            const { fullText } = command;
+            compositioning.current = true;
+            instance.setValue(fullText);
+            compositioning.current = false;
+            first = false;
+            break;
+          }
+          case 'clean': {
+            const { uid } = command;
+            cursors = cursors.filter(v => v.uid !== uid);
+            selections = selections.filter(v => v.uid !== uid);
+            setCursorDecorations(instance, cursors);
+            setSelectionDecrations(instance, selections);
+            break;
+          }
+        }
+      });
+    }, []);
+  }, []);
 
   const [element, instanceRef] = useMonacoEditor(
     {
@@ -47,46 +121,12 @@ export const useCodeEditor = (language: string, cursors: Cursor[], selections: S
 
   useEffect(() => {
     const instance = instanceRef.current;
-    if (instance != null) setCursorDecorations(instance, cursors);
-  }, [cursors]);
-
-  useEffect(() => {
-    const instance = instanceRef.current;
-    if (instance != null) setSelectionDecrations(instance, selections);
-  }, [selections]);
-
-  useEffect(() => {
-    const instance = instanceRef.current;
     if (instance != null) editor.setModelLanguage(instance.getModel()!, language);
   }, [language]);
 
   const getCode = useCallback(() => instanceRef.current?.getValue(), []);
 
-  const execEdits = useCallback((ops: editor.IIdentifiedSingleEditOperation[]) => {
-    return new Promise(resolve => {
-      const f = () => {
-        if (instanceRef.current != null) {
-          compositioning.current = true;
-          resolve(instanceRef.current.executeEdits('coding-chat', ops));
-          compositioning.current = false;
-        } else setTimeout(f);
-      };
-      f();
-    });
-  }, []);
-
-  const setValue = useCallback((value: string) => {
-    const f = () => {
-      if (instanceRef.current != null) {
-        compositioning.current = true;
-        instanceRef.current.setValue(value);
-        compositioning.current = false;
-      } else setTimeout(f);
-    };
-    f();
-  }, []);
-
-  return [element, getCode, execEdits, setValue] as const;
+  return [element, getCode] as const;
 };
 
 const setCursorDecorations = (instance: editor.IStandaloneCodeEditor, cursors: Cursor[]) => {
@@ -94,8 +134,8 @@ const setCursorDecorations = (instance: editor.IStandaloneCodeEditor, cursors: C
   const oldCursorDecorations = (instance.getDecorationsInRange(range) ?? [])
     .filter(decoration => decoration.options.className?.startsWith(cursorSuffix))
     .map(decoration => decoration.id);
-  const newCursorDecorations = cursors.map(({ line, column, uid, name }) => ({
-    range: new Range(line, column, line, column),
+  const newCursorDecorations = cursors.map(({ uid, name, position: { lineNumber, column } }) => ({
+    range: new Range(lineNumber, column, lineNumber, column),
     options: {
       className: [cursorSuffix, suffix + '-' + uid, suffix + '-' + uid + '-bg'].join(' '),
       stickiness: 1,
@@ -110,8 +150,8 @@ const setSelectionDecrations = (instance: editor.IStandaloneCodeEditor, selectio
   const oldSelectionDecorations = (instance.getDecorationsInRange(range) ?? [])
     .filter(decoration => decoration.options.className?.startsWith(selectionSuffix))
     .map(v => v.id);
-  const newSelectionDecorations = selections.map(({ startLine, startColumn, endLine, endColumn, uid, name }) => ({
-    range: new Range(startLine, startColumn, endLine, endColumn),
+  const newSelectionDecorations = selections.map(({ uid, name, range }) => ({
+    range,
     options: {
       className: [selectionSuffix, suffix + '-' + uid, suffix + '-' + uid + '-bg'].join(' '),
       hoverMessage: { value: name },

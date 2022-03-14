@@ -7,12 +7,9 @@ export const encode = (data: Uint8Array): string => {
   for (let i = 0; i < n; ++i) {
     const sur = data.reduce((p, c) => ((p << 8) + c) % RADIX, 0);
     res.push('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'[sur]!);
-    console.log(data);
     minus(data, sur);
-    console.log(data);
     div(data, RADIX);
   }
-  console.log(data);
 
   return res.reverse().join('');
 };
