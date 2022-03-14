@@ -90,12 +90,18 @@ export const useCodeEditor = (conn: WebsocketConnectionManager, language: string
             break;
           }
           case 'onconnect': {
-            if (!first) break;
-            const { fullText } = command;
-            compositioning.current = true;
-            instance.setValue(fullText);
-            compositioning.current = false;
-            first = false;
+            if (first) {
+              const { fullText } = command;
+              compositioning.current = true;
+              instance.setValue(fullText);
+              compositioning.current = false;
+              first = false;
+            } else {
+              const position = instance.getPosition();
+              const selection = instance.getSelection();
+              if (position != null) conn.sendMessage({ type: 'cursormove', data: position });
+              if (selection != null) conn.sendMessage({ type: 'selection', data: selection });
+            }
             break;
           }
           case 'clean': {
@@ -130,7 +136,7 @@ export const useCodeEditor = (conn: WebsocketConnectionManager, language: string
 };
 
 const setCursorDecorations = (instance: editor.IStandaloneCodeEditor, cursors: Cursor[]) => {
-  const range = new Range(0, 0, instance.getModel()!.getLineCount() + 1, 0);
+  const range = new Range(0, 0, (instance.getModel()?.getLineCount() ?? 0) + 1, 0);
   const oldCursorDecorations = (instance.getDecorationsInRange(range) ?? [])
     .filter(decoration => decoration.options.className?.startsWith(cursorSuffix))
     .map(decoration => decoration.id);
@@ -146,7 +152,7 @@ const setCursorDecorations = (instance: editor.IStandaloneCodeEditor, cursors: C
 };
 
 const setSelectionDecrations = (instance: editor.IStandaloneCodeEditor, selections: Selection[]) => {
-  const range = new Range(0, 0, instance.getModel()!.getLineCount() + 1, 0);
+  const range = new Range(0, 0, (instance.getModel()?.getLineCount() ?? 0) + 1, 0);
   const oldSelectionDecorations = (instance.getDecorationsInRange(range) ?? [])
     .filter(decoration => decoration.options.className?.startsWith(selectionSuffix))
     .map(v => v.id);
