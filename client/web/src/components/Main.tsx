@@ -1,6 +1,6 @@
 import { Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
-import { FC, useCallback, useState, VFC } from 'react';
+import { FC, useCallback, useLayoutEffect, useState, VFC } from 'react';
 import { useTextEditor, useReadonlyTextEditor } from '~/components/editor/TextEditor';
 import { Loadable } from '~/scripts/promise';
 import { useCodeEditor } from '~/components/editor/CodeEditor';
@@ -104,6 +104,9 @@ type FlexLayoutComponentName = 'chat' | 'log-editor' | 'input-editor' | 'output-
 
 export const Main = styled<VFC<{ wsConnection: Loadable<WebsocketConnectionManager> }>>(({ wsConnection, ...rest }) => {
   const conn = wsConnection.get();
+  useLayoutEffect(() => {
+    return () => conn.close();
+  }, [])
 
   const [language, languageSelect] = useLanguageSelect();
   const [CodeEditor, getCode] = useCodeEditor(conn, language);

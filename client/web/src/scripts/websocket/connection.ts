@@ -28,6 +28,9 @@ export class WebsocketConnectionManager {
             }
           }
         });
+        socket.addEventListener('close', () => {
+          controller.close();
+        });
       },
     });
   }
