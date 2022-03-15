@@ -62,7 +62,11 @@ module.exports = (env, argv) => {
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, './src/template.html'),
       }),
-      new MonacoEditorWebpackPlugin(),
+      new MonacoEditorWebpackPlugin({
+        filename: 'static/[name].worker.js',
+        publicPath: '/',
+        languages: ['cpp', 'python'],
+      }),
       isDev && new ReactRefreshWebpackPlugin(),
     ].filter(v => !!v),
     devServer: {

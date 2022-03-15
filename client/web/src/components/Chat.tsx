@@ -1,35 +1,43 @@
-import { MouseEvent, useEffect, useRef, useState, VFC } from 'react';
+import { MouseEvent, useCallback, useEffect, useRef, useState, VFC } from 'react';
 import styled from 'styled-components';
-import { ChatMessage } from '~/scripts/chat-connection';
 import { suffix } from '~/scripts/room-mates';
+import { WebsocketConnectionManager } from '~/scripts/websocket/connection';
+import { useChat } from '~/scripts/websocket/hooks';
 import { BlueButton } from './Button';
 
-const Chat = styled<VFC<{ messages: ChatMessage[]; send: (message: string) => void }>>(
-  ({ messages, send, ...rest }) => {
-    const ulRef = useRef<HTMLUListElement>(null);
-    useEffect(() => {
-      ulRef.current?.scroll({ top: 0, behavior: 'smooth' });
-    }, [messages]);
+const Chat = styled<VFC<{ connection: WebsocketConnectionManager }>>(({ connection, ...rest }) => {
+  const ulRef = useRef<HTMLUListElement>(null);
+  const messages = useChat(connection);
 
-    return (
-      <div {...rest}>
-        <ChatInput send={send} />
-        {messages.length === 0 ? (
-          <p>no messages</p>
-        ) : (
-          <ul ref={ulRef}>
-            {messages.map(m => (
-              <li key={+m.date}>
-                <p>{m.content}</p>
-                {m.type !== 'chat' ? <h3>info</h3> : <h3 className={suffix + '-' + m.uid + '-color'}>{m.name}</h3>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
-  }
-)`
+  useEffect(() => {
+    ulRef.current?.scroll({ top: 0, behavior: 'smooth' });
+  }, [messages]);
+
+  const send = useCallback(
+    (content: string) => {
+      connection.sendMessage({ type: 'chat', data: content });
+    },
+    [connection]
+  );
+
+  return (
+    <div {...rest}>
+      <ChatInput send={send} />
+      {messages.length === 0 ? (
+        <p>no messages</p>
+      ) : (
+        <ul ref={ulRef}>
+          {messages.map(m => (
+            <li key={+m.date}>
+              <p>{m.content}</p>
+              {m.type !== 'chat' ? <h3>info</h3> : <h3 className={suffix + '-' + m.uid + '-color'}>{m.name}</h3>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+})`
   display: flex;
   flex-direction: column;
   height: 100%;

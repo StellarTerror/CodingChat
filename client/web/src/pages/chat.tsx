@@ -1,7 +1,7 @@
 import { VFC, useState, useMemo, Suspense, MouseEvent } from 'react';
 import { Main } from '~/components/Main';
 import { useLoad } from '~/scripts/promise';
-import { open } from '~/scripts/chat-connection';
+import { open } from '~/scripts/websocket/connection';
 import { Link, useMatch, useLocation } from '@tanstack/react-location';
 import { LocationGenerics } from '~/components/App';
 import { RoomInfo } from '~/scripts/room-api';
@@ -30,7 +30,7 @@ export const ChatPage: VFC = () => {
     <Entrance set={setUserName} roomInfo={roomInfo} />
   ) : (
     <Suspense fallback={<p>connecting</p>}>
-      <Main chatConnection={chatConnection} />
+      <Main wsConnection={chatConnection} />
     </Suspense>
   );
 };
