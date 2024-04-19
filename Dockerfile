@@ -1,4 +1,4 @@
-FROM node:16-alpine AS builder
+FROM node:lts-bookworm AS builder
 
 WORKDIR /workspace
 
@@ -11,15 +11,16 @@ COPY ./client/web .
 RUN npm run build
 
 
-FROM node:16-alpine AS modules
+FROM node:lts-bookworm AS modules
 
 WORKDIR /workspace
 
-COPY ./client/web/package.json .
+COPY ./client/web/package.json ./
+COPY ./client/web/package-lock.json ./
 
 RUN npm i --production
 
-FROM python:3.10 AS runner
+FROM python:3.12 AS runner
 
 WORKDIR /app
 
@@ -32,4 +33,7 @@ RUN pip3 install -r requirements.txt
 COPY api/src ./src
 
 ENV ENV=production
+
+RUN apt update && apt upgrade -y
+
 CMD uvicorn src.main:app --host 0.0.0.0 --port $PORT

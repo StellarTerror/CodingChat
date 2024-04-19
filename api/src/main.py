@@ -22,10 +22,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.get("/api/hello")
-def hello():
-    return "Hello World"
-
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
